@@ -269,7 +269,19 @@ function readForm(form){
   return Object.fromEntries(f.entries());
 }
 function guestMessage(v){
-  return `Hi ${v.guestName},\n\nYour Taxi Arrangement Details\n\n📅 Date: ${v.date}\n📍 From: ${v.pickup}\n📍 To: ${v.dropoff}\n👥 Passengers: ${v.passengers}\n💰 Price: ${fmt(v.guestPrice)}\n\nIf everything is correct, please confirm with us.\n\nThank you!`;
+  return `Your Taxi Arrangement Details\n\nName: ${v.guestName}\nDate: ${v.date}\nTime: ${v.time}\nFrom: ${v.pickup}\nTo: ${v.dropoff}\nPassengers: ${v.passengers}\nPrice: ${fmt(v.guestPrice)}\n\nPlease confirm your taxi arrangement.\nIf everything is correct, please let us know.`;
+}
+
+function calendarUrl(b){
+  const title = `Taxi – ${b.pickup} → ${b.dropoff}`;
+  const datePart = (b.date||'').replace(/-/g,'');
+  const [h,m] = (b.time||'00:00').split(':').map(Number);
+  const start = `${datePart}T${String(h||0).padStart(2,'0')}${String(m||0).padStart(2,'0')}00`;
+  const eh = ((h||0)+1)%24;
+  const end = `${datePart}T${String(eh).padStart(2,'0')}${String(m||0).padStart(2,'0')}00`;
+  const details = `Guest: ${b.guestName}\nPassengers: ${b.passengers}\nFrom: ${b.pickup}\nTo: ${b.dropoff}\nPrice: ${fmt(b.guestPrice)}`;
+  const params = new URLSearchParams({action:'TEMPLATE', text:title, dates:`${start}/${end}`, details});
+  return 'https://calendar.google.com/calendar/render?'+params.toString();
 }
 
 /* ---------- BOOKINGS / HISTORY ---------- */
@@ -313,6 +325,7 @@ function renderBookingDetail(id){
   <div class="card"><h2>Booking Details</h2><div class="detail-grid">${rows.map(r=>`<div><b>${r[0]}</b><span>${esc(r[1])}</span></div>`).join('')}</div>
     <div class="row"><button class="btn" id="editBtn">Edit / Assign Driver</button>
     <button class="btn secondary" id="msgBtn">Guest Message</button>
+    <a class="btn secondary" href="${calendarUrl(b)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
     <button class="btn danger" id="delBtn">Delete</button></div>
     <div id="msgOut"></div>
   </div>`;
