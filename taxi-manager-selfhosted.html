@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taxi Manager</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --text:#1a1c22; --muted:#6b7280; --border:#e5e7eb;
+  --accent:#0f766e; --accent-ink:#ffffff; --danger:#dc2626; --warn:#d97706; --ok:#16a34a;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111318; --card:#1b1e25; --text:#eef0f3; --muted:#9aa1ac; --border:#2b2f38;
+    --accent:#2dd4bf; --accent-ink:#08201d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111318; --card:#1b1e25; --text:#eef0f3; --muted:#9aa1ac; --border:#2b2f38;
+  --accent:#2dd4bf; --accent-ink:#08201d;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  scroll-padding-top:env(safe-area-inset-top,0px);}
+header{position:sticky;top:0;padding:14px 16px calc(10px + env(safe-area-inset-top,0px));background:var(--card);
+  border-bottom:1px solid var(--border);z-index:5;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:18px;margin:0}
+main{max-width:640px;margin:0 auto;padding:14px 14px 90px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--border);
+  padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+nav.tabs button{flex:1;background:none;border:none;color:var(--muted);font-size:11px;padding:9px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.tabs button span.ic{font-size:19px}
+nav.tabs button.active{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+h2{font-size:15px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px}
+textarea{min-height:60px;resize:vertical}
+button.btn{padding:11px 16px;border-radius:9px;border:none;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:14px;cursor:pointer}
+button.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+button.btn.ghost{background:transparent;color:var(--accent);padding:6px 8px;font-size:13px}
+button.btn.danger{background:var(--danger);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:11px;color:var(--muted)}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.list-item{border-bottom:1px solid var(--border);padding:10px 0;cursor:pointer}
+.list-item:last-child{border-bottom:none}
+.list-item .top{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+.list-item .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.badge{font-size:10px;padding:3px 8px;border-radius:999px;background:var(--border);color:var(--text);white-space:nowrap}
+.badge.new{background:#dbeafe;color:#1e40af}
+.badge.pricesent{background:#fef3c7;color:#92400e}
+.badge.confirmed{background:#dcfce7;color:#166534}
+.badge.pending{background:#fee2e2;color:#991b1b}
+.badge.assigned{background:#e0e7ff;color:#3730a3}
+.badge.completed{background:#d1fae5;color:#065f46}
+.badge.cancelled{background:#f3f4f6;color:#6b7280}
+pre.msg{white-space:pre-wrap;background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:12px;font-size:13.5px}
+.empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:13px}
+.searchbar{margin-bottom:10px}
+.close-x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.detail-grid div{padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;display:flex;justify-content:space-between;gap:10px}
+.detail-grid b{color:var(--muted);font-weight:500;font-size:12px}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 16px;border-radius:20px;font-size:13px;z-index:50;opacity:0;transition:opacity .25s}
+.toast.show{opacity:1}
+.hint{font-size:11px;color:var(--muted);margin-top:2px}
+</style>
+</head>
+<body>
+<header><h1>🚕 Taxi Manager</h1><span id="syncdot" style="font-size:11px;color:var(--muted)" title="Google Sheets sync status">●</span></header>
+<main id="app"></main>
+<nav class="tabs">
+  <button data-view="dashboard"><span class="ic">🏠</span>Dashboard</button>
+  <button data-view="new"><span class="ic">➕</span>New</button>
+  <button data-view="bookings"><span class="ic">📋</span>Bookings</button>
+  <button data-view="routes"><span class="ic">🗺️</span>Routes</button>
+  <button data-view="drivers"><span class="ic">👤</span>Drivers</button>
+</nav>
+<div class="toast" id="toast"></div>
+<script>
+// ===== CONFIGURE THIS =====
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzUl289Yrv7LjekKy_WjMeg-IruCZdE6udeMgEQhpFbqPxdzm--1oXjJ2C-0pI3zMlG/exec';
+// ===========================
+
+let bookings=[], drivers=[], routes=[];
+let view='dashboard', editId=null, bookingFilter={}, pendingDriverId=null;
+const $=s=>document.querySelector(s), $app=()=>document.getElementById('app');
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+function esc(s){return (s||'').toString().replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function slug(s){return (s||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
+function fmt(n){n=Number(n||0);return 'Rs. '+n.toLocaleString('en-LK');}
+function shortId(id){return 'BK-'+id.slice(-5).toUpperCase();}
+function badgeClass(s){return {'New Request':'new','Price Sent':'pricesent','Guest Confirmed':'confirmed','Driver Pending':'pending','Driver Assigned':'assigned','Completed':'completed','Cancelled':'cancelled'}[s]||'';}
+const STATUSES=['New Request','Price Sent','Guest Confirmed','Driver Pending','Driver Assigned','Completed','Cancelled'];
+
+/* ---------- LOCAL STORAGE DATABASE (this browser only) ---------- */
+const LS={
+  all(coll){ try{return JSON.parse(localStorage.getItem('taxi_'+coll)||'[]');}catch(e){return [];} },
+  save(coll,arr){ localStorage.setItem('taxi_'+coll, JSON.stringify(arr)); },
+  add(coll,data){ const arr=LS.all(coll); const id='id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); arr.unshift({id,...data}); LS.save(coll,arr); return id; },
+  set(coll,id,data){ const arr=LS.all(coll); const i=arr.findIndex(x=>x.id===id); if(i>=0) arr[i]={id,...data}; else arr.unshift({id,...data}); LS.save(coll,arr); },
+  get(coll,id){ return LS.all(coll).find(x=>x.id===id)||null; },
+  delete(coll,id){ LS.save(coll, LS.all(coll).filter(x=>x.id!==id)); }
+};
+function refreshAll(){
+  bookings = LS.all('bookings').sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  drivers = LS.all('drivers');
+  routes = LS.all('routes');
+}
+
+/* ---------- GOOGLE SHEETS SYNC ----------
+   Apps Script Web Apps don't send CORS headers the browser can read, so we
+   POST with mode:'no-cors' (no response can be inspected — a resolved fetch
+   only means the request went out, not that the sheet accepted it). Failed
+   sends (offline, etc.) are queued in localStorage and retried automatically. */
+function queue(payload){ const q=LS.all('_syncQueue'); q.push(payload); LS.save('_syncQueue', q); updateSyncDot(); }
+async function sendToSheet(payload){
+  try{
+    await fetch(SHEETS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    return true;
+  }catch(e){ return false; }
+}
+async function syncNow(payload){
+  const ok = await sendToSheet(payload);
+  if(!ok) queue(payload);
+  updateSyncDot();
+}
+async function drainQueue(){
+  const q=LS.all('_syncQueue');
+  if(!q.length) return;
+  const remaining=[];
+  for(const item of q){ const ok=await sendToSheet(item); if(!ok) remaining.push(item); }
+  LS.save('_syncQueue', remaining);
+  updateSyncDot();
+}
+function updateSyncDot(){
+  const dot=$('#syncdot'); if(!dot) return;
+  const pending=LS.all('_syncQueue').length;
+  if(pending>0){ dot.style.color='var(--warn)'; dot.title=pending+' change(s) waiting to sync to Google Sheets'; }
+  else { dot.style.color='var(--ok)'; dot.title='Synced to Google Sheets'; }
+}
+window.addEventListener('online', drainQueue);
+setInterval(drainQueue, 20000);
+
+function bookingRowForSheet(b){
+  return {
+    'Booking ID':shortId(b.id),'Guest Name':b.guestName,'Guest WhatsApp':b.guestWhatsapp,
+    'Date':b.date,'Time':b.time,'Pick-up':b.pickup,'Drop-off':b.dropoff,'Passengers':b.passengers,
+    'Guest Price':b.guestPrice,'Taxi Cost':b.taxiCost,'Commission':b.commission,
+    'Driver':b.driverName,'Driver WhatsApp':b.driverWhatsapp,'Vehicle':b.vehicle,
+    'Status':b.status,'Notes':b.notes
+  };
+}
+function routeRowForSheet(r){
+  return {'From':r.from,'To':r.to,'Vehicle Type':r.vehicleType,'Taxi Cost':r.cost,'Last Used':r.lastUsed,'Times Used':r.timesUsed,'Notes':r.notes||''};
+}
+function driverRowForSheet(d){
+  return {'Driver Name':d.driverName,'WhatsApp':d.whatsapp,'Vehicle Type':d.vehicleType,'Vehicle Model':d.vehicleModel,'Vehicle Number':d.vehicleNumber,'Notes':d.notes||'','Status':d.status};
+}
+
+function init(){
+  refreshAll();
+  drainQueue();
+  render();
+}
+
+function setView(v){view=v;editId=null;pendingDriverId=null;document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));render();}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+document.querySelector('nav.tabs button[data-view="dashboard"]').classList.add('active');
+
+function render(){
+  if(view==='dashboard') $app().innerHTML = renderDashboard();
+  else if(view==='new') $app().innerHTML = renderForm(editId ? bookings.find(x=>x.id===editId) : null);
+  else if(view==='bookings') $app().innerHTML = renderBookings();
+  else if(view==='bookingDetail') $app().innerHTML = renderBookingDetail(editId);
+  else if(view==='routes') $app().innerHTML = renderRoutes();
+  else if(view==='drivers') $app().innerHTML = renderDrivers();
+  wireEvents();
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(){
+  const today=new Date().toISOString().slice(0,10);
+  const todays=bookings.filter(b=>b.date===today);
+  const upcoming=bookings.filter(b=>b.date>today && b.status!=='Cancelled' && b.status!=='Completed');
+  const pending=bookings.filter(b=>b.status==='Driver Pending');
+  const completed=bookings.filter(b=>b.status==='Completed');
+  const commission=completed.reduce((s,b)=>s+(Number(b.guestPrice||0)-Number(b.taxiCost||0)),0);
+  const list=(arr,empty)=> arr.length? arr.slice(0,6).map(b=>bookingRow(b)).join('') : `<div class="empty">${empty}</div>`;
+  return `
+  <div class="statgrid">
+    <div class="stat"><b>${todays.length}</b><span>Today's bookings</span></div>
+    <div class="stat"><b>${upcoming.length}</b><span>Upcoming</span></div>
+    <div class="stat"><b>${pending.length}</b><span>Driver Pending</span></div>
+    <div class="stat"><b>${fmt(commission)}</b><span>Total commission</span></div>
+  </div>
+  <div class="card"><h2>Today</h2>${list(todays,'No bookings today')}</div>
+  <div class="card"><h2>Driver Pending</h2>${list(pending,'None pending')}</div>
+  <div class="card"><h2>Upcoming</h2>${list(upcoming,'Nothing upcoming')}</div>
+  `;
+}
+function bookingRow(b){
+  return `<div class="list-item" data-open="${b.id}">
+    <div class="top"><span>${esc(b.guestName)}</span><span class="badge ${badgeClass(b.status)}">${b.status}</span></div>
+    <div class="sub">${esc(b.pickup)} → ${esc(b.dropoff)} · ${b.date||''} ${b.time||''}</div>
+  </div>`;
+}
+
+/* ---------- NEW BOOKING ---------- */
+function renderForm(b){
+  b=b||{};
+  const selectedDriverId = pendingDriverId || b.driverId || '';
+  const commission = (b.guestPrice && b.taxiCost) ? (Number(b.guestPrice)-Number(b.taxiCost)) : null;
+  return `
+  <div class="card">
+    <h2>${b.id?'Edit Booking':'New Booking'}</h2>
+    <form id="bookingForm">
+      <label>Guest Name</label><input name="guestName" required value="${esc(b.guestName)}">
+      <label>Guest WhatsApp</label><input name="guestWhatsapp" value="${esc(b.guestWhatsapp)}">
+      <div class="grid2">
+        <div><label>Date</label><input type="date" name="date" required value="${esc(b.date)||''}"></div>
+        <div><label>Time</label><input type="time" name="time" required value="${esc(b.time)||''}"></div>
+      </div>
+      <label>Pick-up (full address)</label><input name="pickup" required value="${esc(b.pickup)}">
+      <label>Drop-off (full address)</label><input name="dropoff" required value="${esc(b.dropoff)}">
+      <div class="grid2">
+        <div><label>Route From (city, for pricing)</label><input name="routeFrom" placeholder="e.g. Trincomalee" value="${esc(b.routeFrom)}"></div>
+        <div><label>Route To (city, for pricing)</label><input name="routeTo" placeholder="e.g. Sigiriya" value="${esc(b.routeTo)}"></div>
+      </div>
+      <div class="hint">Used only to match the Route Prices database — leave blank to auto-use pick-up/drop-off.</div>
+      <label>Vehicle Type</label>
+      <select name="vehicleType"><option ${b.vehicleType==='Car'?'selected':''}>Car</option><option ${b.vehicleType==='Van'?'selected':''}>Van</option><option ${b.vehicleType==='Tuk'?'selected':''}>Tuk</option><option ${b.vehicleType==='SUV'?'selected':''}>SUV</option></select>
+      <label>Passengers</label><input type="number" min="1" name="passengers" value="${b.passengers||1}">
+      <label>Guest Price (Rs.)</label><input type="number" name="guestPrice" id="guestPriceInput" required value="${b.guestPrice||''}">
+      <label>Taxi Cost (Rs., optional)</label><input type="number" name="taxiCost" id="taxiCostInput" value="${b.taxiCost||''}">
+      <div class="hint" id="commissionLive">Commission (internal only): ${commission!==null?fmt(commission):'—'}</div>
+      <label>Driver (optional)</label>
+      <select name="driverId" id="driverSelect"><option value="">— Not assigned —</option>${drivers.map(d=>`<option value="${d.id}" ${selectedDriverId===d.id?'selected':''}>${esc(d.driverName)} (${esc(d.vehicleNumber)})</option>`).join('')}</select>
+      <button type="button" class="btn ghost" id="ndToggleBtn">+ Add New Driver</button>
+      <div id="newDriverBox" style="display:none;margin-top:8px;padding:10px;border:1px dashed var(--border);border-radius:8px">
+        <label>New Driver Name</label><input id="ndName">
+        <label>New Driver WhatsApp</label><input id="ndWhatsapp">
+        <div class="grid2">
+          <div><label>Vehicle Type</label><select id="ndVehicleType"><option>Car</option><option>Van</option><option>Tuk</option><option>SUV</option></select></div>
+          <div><label>Vehicle Model</label><input id="ndModel"></div>
+        </div>
+        <label>Vehicle Number</label><input id="ndNumber">
+        <div class="row"><button type="button" class="btn secondary" id="ndSaveBtn">Save &amp; Select Driver</button><button type="button" class="btn ghost" id="ndCancelBtn">Cancel</button></div>
+      </div>
+      <label>Status</label>
+      <select name="status">${STATUSES.map(s=>`<option ${((b.status||'New Request')===s)?'selected':''}>${s}</option>`).join('')}</select>
+      <label>Notes</label><textarea name="notes">${esc(b.notes)}</textarea>
+      <div class="row">
+        <button type="button" class="btn secondary" id="genMsgBtn">Generate Guest Message</button>
+        <button type="submit" class="btn">Save Booking</button>
+      </div>
+    </form>
+    <div id="msgOut"></div>
+  </div>`;
+}
+function readForm(form){
+  const f=new FormData(form);
+  return Object.fromEntries(f.entries());
+}
+function guestMessage(v){
+  return `Your Taxi Arrangement Details\n\nName: ${v.guestName}\nDate: ${v.date}\nTime: ${v.time}\nFrom: ${v.pickup}\nTo: ${v.dropoff}\nPassengers: ${v.passengers}\nPrice: ${fmt(v.guestPrice)}\n\nPlease confirm your taxi arrangement.\nIf everything is correct, please let us know.`;
+}
+
+function calendarUrl(b){
+  const title = `Taxi – ${b.pickup} → ${b.dropoff}`;
+  const datePart = (b.date||'').replace(/-/g,'');
+  const [h,m] = (b.time||'00:00').split(':').map(Number);
+  const start = `${datePart}T${String(h||0).padStart(2,'0')}${String(m||0).padStart(2,'0')}00`;
+  const eh = ((h||0)+1)%24;
+  const end = `${datePart}T${String(eh).padStart(2,'0')}${String(m||0).padStart(2,'0')}00`;
+  const details = `Guest: ${b.guestName}\nPassengers: ${b.passengers}\nFrom: ${b.pickup}\nTo: ${b.dropoff}\nPrice: ${fmt(b.guestPrice)}`;
+  const params = new URLSearchParams({action:'TEMPLATE', text:title, dates:`${start}/${end}`, details});
+  return 'https://calendar.google.com/calendar/render?'+params.toString();
+}
+
+/* ---------- BOOKINGS / HISTORY ---------- */
+function renderBookings(){
+  const f=bookingFilter;
+  let list=bookings.filter(b=>{
+    if(f.q){const q=f.q.toLowerCase(); if(!(`${b.guestName} ${b.pickup} ${b.dropoff} ${shortId(b.id)}`.toLowerCase().includes(q))) return false;}
+    if(f.status && b.status!==f.status) return false;
+    if(f.date && b.date!==f.date) return false;
+    return true;
+  });
+  return `
+  <div class="card searchbar">
+    <input placeholder="Search guest, pick-up, drop-off, ID..." id="searchQ" value="${esc(f.q)}">
+    <div class="grid2" style="margin-top:8px">
+      <select id="filterStatus"><option value="">All statuses</option>${STATUSES.map(s=>`<option ${f.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      <input type="date" id="filterDate" value="${f.date||''}">
+    </div>
+  </div>
+  <div class="card">${list.length? list.map(bookingRow).join('') : '<div class="empty">No bookings match</div>'}</div>`;
+}
+function renderBookingDetail(id){
+  const b=bookings.find(x=>x.id===id);
+  if(!b) return '<div class="empty">Not found</div>';
+  const driver=drivers.find(d=>d.id===b.driverId);
+  const driverName = b.driverName || (driver?driver.driverName:null);
+  const driverWhatsapp = b.driverWhatsapp || (driver?driver.whatsapp:null);
+  const vehicle = b.vehicle || (driver?`${driver.vehicleModel||''} ${driver.vehicleNumber||''}`.trim():null);
+  const commission = b.taxiCost? (Number(b.guestPrice)-Number(b.taxiCost)) : null;
+  const rows=[
+    ['Booking ID',shortId(b.id)],['Guest',b.guestName],['Guest WhatsApp',b.guestWhatsapp],
+    ['Date',b.date],['Time',b.time],['Pick-up',b.pickup],['Drop-off',b.dropoff],
+    ['Passengers',b.passengers],['Guest Price',fmt(b.guestPrice)],
+    ['Taxi Cost',b.taxiCost?fmt(b.taxiCost):'—'],['Commission',commission!==null?fmt(commission):'—'],
+    ['Driver',driverName||'— Not assigned —'],
+    ['Driver WhatsApp',driverWhatsapp||'—'],['Vehicle',vehicle||'—'],
+    ['Status',b.status],['Notes',b.notes||'—']
+  ];
+  return `
+  <div class="card"><button class="btn ghost" id="backBtn">‹ Back to Bookings</button></div>
+  <div class="card"><h2>Booking Details</h2><div class="detail-grid">${rows.map(r=>`<div><b>${r[0]}</b><span>${esc(r[1])}</span></div>`).join('')}</div>
+    <div class="row"><button class="btn" id="editBtn">Edit / Assign Driver</button>
+    <button class="btn secondary" id="msgBtn">Guest Message</button>
+    <a class="btn secondary" href="${calendarUrl(b)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
+    <button class="btn danger" id="delBtn">Delete</button></div>
+    <div id="msgOut"></div>
+  </div>`;
+}
+
+/* ---------- ROUTE PRICES ---------- */
+function renderRoutes(){
+  const f=bookingFilter.route||{};
+  let list=routes;
+  if(f.q){const q=f.q.toLowerCase();list=list.filter(r=>`${r.from} ${r.to}`.toLowerCase().includes(q));}
+  return `
+  <div class="card"><h2>Search Routes</h2><input id="routeQ" placeholder="e.g. Trincomalee Sigiriya" value="${esc(f.q)}"></div>
+  <div class="card">${list.length? list.map(r=>`
+    <div class="list-item">
+      <div class="top"><span>${esc(r.from)} → ${esc(r.to)} (${esc(r.vehicleType)})</span><span>${fmt(r.cost)}</span></div>
+      <div class="sub">Used ${r.timesUsed||1}× · Last: ${r.lastUsed||'—'}</div>
+      <div class="sub">History: ${(r.history||[]).map(h=>fmt(h.cost)).join(', ')}</div>
+    </div>`).join('') : '<div class="empty">No route price history yet — it fills in as you save bookings with a Taxi Cost.</div>'}</div>`;
+}
+
+/* ---------- DRIVERS ---------- */
+function renderDrivers(){
+  return `
+  <div class="card">
+    <h2>Add Driver</h2>
+    <form id="driverForm">
+      <label>Driver Name</label><input name="driverName" required>
+      <label>WhatsApp</label><input name="whatsapp">
+      <div class="grid2">
+        <div><label>Vehicle Type</label><select name="vehicleType"><option>Car</option><option>Van</option><option>Tuk</option><option>SUV</option></select></div>
+        <div><label>Vehicle Model</label><input name="vehicleModel"></div>
+      </div>
+      <label>Vehicle Number</label><input name="vehicleNumber">
+      <label>Notes</label><textarea name="notes"></textarea>
+      <label>Status</label><select name="status"><option>Active</option><option>Inactive</option></select>
+      <div class="row"><button class="btn" type="submit">Save Driver</button></div>
+    </form>
+  </div>
+  <div class="card"><h2>Drivers</h2>${drivers.length? drivers.map(d=>`
+    <div class="list-item">
+      <div class="top"><span>${esc(d.driverName)}</span><span class="badge">${esc(d.status)}</span></div>
+      <div class="sub">${esc(d.whatsapp)} · ${esc(d.vehicleType)} ${esc(d.vehicleModel)} · ${esc(d.vehicleNumber)}</div>
+    </div>`).join('') : '<div class="empty">No drivers yet</div>'}</div>`;
+}
+
+/* ---------- EVENTS ---------- */
+function wireEvents(){
+  $app().querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{editId=el.dataset.open;view='bookingDetail';render();}));
+  const bf=$('#bookingForm');
+  if(bf){
+    $('#genMsgBtn').addEventListener('click',()=>{
+      const v=readForm(bf);
+      $('#msgOut').innerHTML=`<h2 style="margin-top:14px">Guest Message</h2><pre class="msg">${esc(guestMessage(v))}</pre><div class="hint">Copy this and send manually via WhatsApp.</div>`;
+    });
+    const liveCommission=()=>{
+      const gp=Number($('#guestPriceInput').value||0), tc=$('#taxiCostInput').value;
+      $('#commissionLive').textContent = tc!==''? `Commission (internal only): ${fmt(gp-Number(tc))}` : 'Commission (internal only): —';
+    };
+    $('#guestPriceInput').addEventListener('input',liveCommission);
+    $('#taxiCostInput').addEventListener('input',liveCommission);
+    const ndBox=$('#newDriverBox');
+    $('#ndToggleBtn').addEventListener('click',()=>{ ndBox.style.display = ndBox.style.display==='none'?'block':'none'; });
+    $('#ndCancelBtn').addEventListener('click',()=>{ ndBox.style.display='none'; });
+    $('#ndSaveBtn').addEventListener('click', async ()=>{
+      const nd={
+        driverName:$('#ndName').value.trim(), whatsapp:$('#ndWhatsapp').value.trim(),
+        vehicleType:$('#ndVehicleType').value, vehicleModel:$('#ndModel').value.trim(),
+        vehicleNumber:$('#ndNumber').value.trim(), notes:'', status:'Active'
+      };
+      if(!nd.driverName){ toast('Enter a driver name'); return; }
+      const id=LS.add('drivers', nd);
+      pendingDriverId=id;
+      refreshAll();
+      toast('Driver added');
+      render();
+      syncNow({action:'saveDriver', data:driverRowForSheet(nd)});
+    });
+    bf.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const v=readForm(bf);
+      const prev = editId ? bookings.find(x=>x.id===editId) : null;
+      const driverId = v.driverId||null;
+      const driver = driverId ? drivers.find(d=>d.id===driverId) : null;
+      const newTaxiCost = v.taxiCost? Number(v.taxiCost) : null;
+      const data={
+        guestName:v.guestName, guestWhatsapp:v.guestWhatsapp, date:v.date, time:v.time,
+        pickup:v.pickup, dropoff:v.dropoff, routeFrom:v.routeFrom||v.pickup, routeTo:v.routeTo||v.dropoff,
+        vehicleType:v.vehicleType, passengers:Number(v.passengers||1),
+        guestPrice:Number(v.guestPrice||0), taxiCost:newTaxiCost,
+        driverId, driverName: driver?driver.driverName:null, driverWhatsapp: driver?driver.whatsapp:null,
+        vehicle: driver?`${driver.vehicleModel||''} ${driver.vehicleNumber||''}`.trim():null,
+        status:v.status, notes:v.notes||'',
+        commission: newTaxiCost!==null? Number(v.guestPrice||0)-newTaxiCost : null,
+        createdAt: prev? (prev.createdAt || Date.now()) : Date.now(),
+        updatedAt: Date.now()
+      };
+      let savedId=editId;
+      if(editId){ LS.set('bookings', editId, data); toast('Booking updated'); }
+      else { savedId=LS.add('bookings', data); toast('Booking saved'); }
+      refreshAll();
+      syncNow({action:'saveBooking', data:bookingRowForSheet({id:savedId,...data})});
+      const costChanged = newTaxiCost!==null && newTaxiCost !== (prev? prev.taxiCost : undefined);
+      if(costChanged) updateRoutePrice(data);
+      pendingDriverId=null; editId=null; view='bookings'; render();
+    });
+  }
+  const sq=$('#searchQ'); if(sq) sq.addEventListener('input',()=>{bookingFilter.q=sq.value;render();});
+  const fs=$('#filterStatus'); if(fs) fs.addEventListener('change',()=>{bookingFilter.status=fs.value;render();});
+  const fd=$('#filterDate'); if(fd) fd.addEventListener('change',()=>{bookingFilter.date=fd.value;render();});
+  const rq=$('#routeQ'); if(rq) rq.addEventListener('input',()=>{bookingFilter.route={q:rq.value};render();});
+  const back=$('#backBtn'); if(back) back.addEventListener('click',()=>{view='bookings';render();});
+  const editBtn=$('#editBtn'); if(editBtn) editBtn.addEventListener('click',()=>{ view='new'; render(); });
+  const msgBtn=$('#msgBtn'); if(msgBtn) msgBtn.addEventListener('click',()=>{
+    const b=bookings.find(x=>x.id===editId);
+    $('#msgOut').innerHTML=`<h2 style="margin-top:14px">Guest Message</h2><pre class="msg">${esc(guestMessage(b))}</pre><div class="hint">Copy this and send manually via WhatsApp.</div>`;
+  });
+  const delBtn=$('#delBtn'); if(delBtn) delBtn.addEventListener('click', async ()=>{
+    if(confirm('Delete this booking?')){ LS.delete('bookings', editId); refreshAll(); toast('Deleted'); view='bookings'; render(); }
+  });
+  const df=$('#driverForm');
+  if(df) df.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const v=readForm(df);
+    LS.add('drivers', v);
+    refreshAll();
+    toast('Driver added'); df.reset();
+    render();
+    syncNow({action:'saveDriver', data:driverRowForSheet(v)});
+  });
+}
+
+function updateRoutePrice(b){
+  const from=(b.routeFrom||b.pickup||'').split(',')[0].trim();
+  const to=(b.routeTo||b.dropoff||'').split(',')[0].trim();
+  if(!from||!to) return;
+  const key=slug(from)+'__'+slug(to)+'__'+slug(b.vehicleType);
+  const cur=LS.get('routes', key);
+  const today=new Date().toISOString().slice(0,10);
+  let record;
+  if(cur){
+    const history=(cur.history||[]).concat([{cost:b.taxiCost,date:today}]).slice(-10);
+    record={from,to,vehicleType:b.vehicleType,cost:b.taxiCost,lastUsed:today,timesUsed:(cur.timesUsed||1)+1,notes:cur.notes||'',history};
+  } else {
+    record={from,to,vehicleType:b.vehicleType,cost:b.taxiCost,lastUsed:today,timesUsed:1,notes:'',history:[{cost:b.taxiCost,date:today}]};
+  }
+  LS.set('routes', key, record);
+  refreshAll();
+  syncNow({action:'saveRoutePrice', data:routeRowForSheet(record)});
+}
+
+init();
+</script>
+</body>
+</html>
